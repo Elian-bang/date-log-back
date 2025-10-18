@@ -1,5 +1,8 @@
 import { Router } from 'express';
 import dateRoutes from './date.routes';
+import cafeRoutes from './cafe.routes';
+import restaurantRoutes from './restaurant.routes';
+import spotRoutes from './spot.routes';
 
 const router = Router();
 
@@ -22,10 +25,10 @@ router.get('/docs', (_req, res) => {
   });
 });
 
-// Date Entry routes
+// API routes
 router.use('/dates', dateRoutes);
-
-// Placeholder for future routes
-// router.use('/regions', regionRoutes);
+router.use('/cafes', cafeRoutes);
+router.use('/restaurants', restaurantRoutes);
+router.use('/spots', spotRoutes);
 
 export default router;
