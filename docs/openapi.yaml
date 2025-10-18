@@ -1,0 +1,1160 @@
+openapi: 3.0.3
+info:
+  title: DateLog API
+  description: |
+    REST API for DateLog - 데이트 코스 기록 서비스
+
+    A date course recording service that allows users to:
+    - Record date courses by date
+    - Organize places (cafes/restaurants/spots) by neighborhood
+    - Mark visited places and add memos
+    - Export and import data
+
+  version: 1.0.0
+  contact:
+    name: DateLog API Support
+    email: support@datelog.app
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.datelog.app/v1
+    description: Production server
+  - url: https://staging-api.datelog.app/v1
+    description: Staging server
+  - url: http://localhost:3000/v1
+    description: Local development server
+
+tags:
+  - name: Dates
+    description: Date entry management
+  - name: Cafes
+    description: Cafe place management
+  - name: Restaurants
+    description: Restaurant place management
+  - name: Spots
+    description: Tourist spot management
+  - name: Regions
+    description: Region information
+  - name: Data
+    description: Bulk data operations
+
+paths:
+  /dates:
+    get:
+      tags:
+        - Dates
+      summary: List all date entries
+      description: Retrieve a paginated list of all date entries with optional filters
+      operationId: listDates
+      parameters:
+        - name: region
+          in: query
+          description: Filter by region name
+          required: false
+          schema:
+            type: string
+            example: 삼송
+        - name: year
+          in: query
+          description: Filter by year
+          required: false
+          schema:
+            type: integer
+            minimum: 2000
+            maximum: 2100
+            example: 2025
+        - name: month
+          in: query
+          description: Filter by month
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+            example: 10
+        - name: has_visited
+          in: query
+          description: Filter by visited status
+          required: false
+          schema:
+            type: boolean
+            example: true
+        - name: sort
+          in: query
+          description: Sort order
+          required: false
+          schema:
+            type: string
+            enum: [date_asc, date_desc, created_asc, created_desc]
+            default: date_desc
+        - name: page
+          in: query
+          description: Page number
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DateSummary'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+                  links:
+                    $ref: '#/components/schemas/PaginationLinks'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Dates
+      summary: Create a new date entry
+      description: Create a new date entry with region information
+      operationId: createDate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDateRequest'
+      responses:
+        '201':
+          description: Date entry created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DateEntry'
+                  links:
+                    type: object
+                    properties:
+                      self:
+                        type: string
+                        example: /dates/2025-10-18
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /dates/{date}:
+    parameters:
+      - $ref: '#/components/parameters/DatePath'
+
+    get:
+      tags:
+        - Dates
+      summary: Get a single date entry
+      description: Retrieve detailed information for a specific date entry
+      operationId: getDate
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DateEntry'
+                  links:
+                    type: object
+                    properties:
+                      self:
+                        type: string
+                      cafes:
+                        type: string
+                      restaurants:
+                        type: string
+                      spots:
+                        type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Dates
+      summary: Update a date entry
+      description: Update region or other date entry information
+      operationId: updateDate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDateRequest'
+      responses:
+        '200':
+          description: Date entry updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DateEntry'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      tags:
+        - Dates
+      summary: Delete a date entry
+      description: Delete a date entry and all associated places
+      operationId: deleteDate
+      responses:
+        '204':
+          description: Date entry deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dates/{date}/cafes:
+    parameters:
+      - $ref: '#/components/parameters/DatePath'
+
+    get:
+      tags:
+        - Cafes
+      summary: List cafes for a date
+      description: Retrieve all cafes for a specific date
+      operationId: listCafes
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Cafe'
+                  meta:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      category:
+                        type: string
+                        example: cafe
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Cafes
+      summary: Add a cafe
+      description: Add a new cafe to a date entry
+      operationId: createCafe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlaceRequest'
+      responses:
+        '201':
+          description: Cafe created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Cafe'
+                  links:
+                    type: object
+                    properties:
+                      self:
+                        type: string
+                      date:
+                        type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /dates/{date}/cafes/{placeId}:
+    parameters:
+      - $ref: '#/components/parameters/DatePath'
+      - $ref: '#/components/parameters/PlaceIdPath'
+
+    patch:
+      tags:
+        - Cafes
+      summary: Update a cafe
+      description: Update cafe information
+      operationId: updateCafe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlaceRequest'
+      responses:
+        '200':
+          description: Cafe updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Cafe'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Cafes
+      summary: Delete a cafe
+      description: Remove a cafe from a date entry
+      operationId: deleteCafe
+      responses:
+        '204':
+          description: Cafe deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dates/{date}/restaurants:
+    parameters:
+      - $ref: '#/components/parameters/DatePath'
+
+    get:
+      tags:
+        - Restaurants
+      summary: List restaurants for a date
+      description: Retrieve all restaurants for a specific date with optional type filter
+      operationId: listRestaurants
+      parameters:
+        - name: type
+          in: query
+          description: Filter by restaurant type
+          required: false
+          schema:
+            type: string
+            enum: [한식, 일식, 중식, 고기집, 전체]
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Restaurant'
+                  meta:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      category:
+                        type: string
+                        example: restaurant
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Restaurants
+      summary: Add a restaurant
+      description: Add a new restaurant to a date entry
+      operationId: createRestaurant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRestaurantRequest'
+      responses:
+        '201':
+          description: Restaurant created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Restaurant'
+                  links:
+                    type: object
+                    properties:
+                      self:
+                        type: string
+                      date:
+                        type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /dates/{date}/restaurants/{placeId}:
+    parameters:
+      - $ref: '#/components/parameters/DatePath'
+      - $ref: '#/components/parameters/PlaceIdPath'
+
+    patch:
+      tags:
+        - Restaurants
+      summary: Update a restaurant
+      description: Update restaurant information
+      operationId: updateRestaurant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRestaurantRequest'
+      responses:
+        '200':
+          description: Restaurant updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Restaurant'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Restaurants
+      summary: Delete a restaurant
+      description: Remove a restaurant from a date entry
+      operationId: deleteRestaurant
+      responses:
+        '204':
+          description: Restaurant deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dates/{date}/spots:
+    parameters:
+      - $ref: '#/components/parameters/DatePath'
+
+    get:
+      tags:
+        - Spots
+      summary: List spots for a date
+      description: Retrieve all tourist spots for a specific date
+      operationId: listSpots
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Spot'
+                  meta:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      category:
+                        type: string
+                        example: spot
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Spots
+      summary: Add a spot
+      description: Add a new tourist spot to a date entry
+      operationId: createSpot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlaceRequest'
+      responses:
+        '201':
+          description: Spot created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Spot'
+                  links:
+                    type: object
+                    properties:
+                      self:
+                        type: string
+                      date:
+                        type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /dates/{date}/spots/{placeId}:
+    parameters:
+      - $ref: '#/components/parameters/DatePath'
+      - $ref: '#/components/parameters/PlaceIdPath'
+
+    patch:
+      tags:
+        - Spots
+      summary: Update a spot
+      description: Update tourist spot information
+      operationId: updateSpot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlaceRequest'
+      responses:
+        '200':
+          description: Spot updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Spot'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Spots
+      summary: Delete a spot
+      description: Remove a tourist spot from a date entry
+      operationId: deleteSpot
+      responses:
+        '204':
+          description: Spot deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /regions:
+    get:
+      tags:
+        - Regions
+      summary: List all regions
+      description: Retrieve all regions with optional place counts
+      operationId: listRegions
+      parameters:
+        - name: with_counts
+          in: query
+          description: Include place counts per region
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Region'
+                  meta:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+
+  /export:
+    get:
+      tags:
+        - Data
+      summary: Export all data
+      description: Export all date entries and places
+      operationId: exportData
+      parameters:
+        - name: format
+          in: query
+          description: Export format
+          required: false
+          schema:
+            type: string
+            enum: [json, csv]
+            default: json
+      responses:
+        '200':
+          description: Export successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    additionalProperties:
+                      $ref: '#/components/schemas/DateEntryExport'
+                  meta:
+                    type: object
+                    properties:
+                      exported_at:
+                        type: string
+                        format: date-time
+                      total_dates:
+                        type: integer
+                      total_places:
+                        type: integer
+
+  /import:
+    post:
+      tags:
+        - Data
+      summary: Import data
+      description: Import date entries and places in bulk
+      operationId: importData
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportRequest'
+      responses:
+        '200':
+          description: Import successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      imported_dates:
+                        type: integer
+                      imported_places:
+                        type: integer
+                      skipped:
+                        type: integer
+                      errors:
+                        type: array
+                        items:
+                          type: string
+                  meta:
+                    type: object
+                    properties:
+                      imported_at:
+                        type: string
+                        format: date-time
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+components:
+  schemas:
+    DateSummary:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          example: '2025-10-18'
+        region:
+          type: string
+          example: 삼송
+        place_counts:
+          type: object
+          properties:
+            cafe:
+              type: integer
+              example: 3
+            restaurant:
+              type: integer
+              example: 5
+            spot:
+              type: integer
+              example: 2
+        visited_counts:
+          type: object
+          properties:
+            cafe:
+              type: integer
+              example: 2
+            restaurant:
+              type: integer
+              example: 4
+            spot:
+              type: integer
+              example: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        links:
+          type: object
+          properties:
+            self:
+              type: string
+            places:
+              type: string
+
+    DateEntry:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          example: '2025-10-18'
+        region:
+          type: string
+          example: 삼송
+        categories:
+          type: object
+          properties:
+            cafe:
+              type: array
+              items:
+                $ref: '#/components/schemas/Cafe'
+            restaurant:
+              type: array
+              items:
+                $ref: '#/components/schemas/Restaurant'
+            spot:
+              type: array
+              items:
+                $ref: '#/components/schemas/Spot'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    DateEntryExport:
+      type: object
+      properties:
+        region:
+          type: string
+        categories:
+          type: object
+          properties:
+            cafe:
+              type: array
+              items:
+                $ref: '#/components/schemas/PlaceBase'
+            restaurant:
+              type: array
+              items:
+                $ref: '#/components/schemas/RestaurantExport'
+            spot:
+              type: array
+              items:
+                $ref: '#/components/schemas/PlaceBase'
+
+    PlaceBase:
+      type: object
+      required:
+        - name
+      properties:
+        id:
+          type: string
+          example: cafe_001
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: 나무사이로
+        memo:
+          type: string
+          maxLength: 500
+          example: 분위기 좋은 창가 자리 있음
+        image:
+          type: string
+          format: uri
+          example: https://cdn.datelog.app/images/cafe1.jpg
+        link:
+          type: string
+          format: uri
+          example: https://map.naver.com/v5/entry/place/1234567890
+        visited:
+          type: boolean
+          default: false
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Cafe:
+      allOf:
+        - $ref: '#/components/schemas/PlaceBase'
+
+    Restaurant:
+      allOf:
+        - $ref: '#/components/schemas/PlaceBase'
+        - type: object
+          required:
+            - type
+          properties:
+            type:
+              type: string
+              enum: [한식, 일식, 중식, 고기집, 전체]
+              example: 한식
+
+    RestaurantExport:
+      allOf:
+        - $ref: '#/components/schemas/PlaceBase'
+        - type: object
+          properties:
+            type:
+              type: string
+              example: 한식
+
+    Spot:
+      allOf:
+        - $ref: '#/components/schemas/PlaceBase'
+
+    Coordinates:
+      type: object
+      properties:
+        latitude:
+          type: number
+          format: float
+          minimum: -90
+          maximum: 90
+          example: 37.6789
+        longitude:
+          type: number
+          format: float
+          minimum: -180
+          maximum: 180
+          example: 126.9123
+
+    Region:
+      type: object
+      properties:
+        name:
+          type: string
+          example: 삼송
+        place_counts:
+          type: object
+          properties:
+            total:
+              type: integer
+              example: 10
+            cafe:
+              type: integer
+              example: 3
+            restaurant:
+              type: integer
+              example: 5
+            spot:
+              type: integer
+              example: 2
+        date_count:
+          type: integer
+          example: 5
+
+    CreateDateRequest:
+      type: object
+      required:
+        - date
+        - region
+      properties:
+        date:
+          type: string
+          format: date
+          example: '2025-10-18'
+        region:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: 삼송
+
+    UpdateDateRequest:
+      type: object
+      properties:
+        region:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: 은평
+
+    CreatePlaceRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: 카페 이름
+        memo:
+          type: string
+          maxLength: 500
+          example: 메모 내용
+        image:
+          type: string
+          format: uri
+        link:
+          type: string
+          format: uri
+        visited:
+          type: boolean
+          default: false
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+
+    CreateRestaurantRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreatePlaceRequest'
+        - type: object
+          required:
+            - type
+          properties:
+            type:
+              type: string
+              enum: [한식, 일식, 중식, 고기집, 전체]
+              example: 한식
+
+    UpdatePlaceRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        memo:
+          type: string
+          maxLength: 500
+        image:
+          type: string
+          format: uri
+        link:
+          type: string
+          format: uri
+        visited:
+          type: boolean
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+
+    UpdateRestaurantRequest:
+      allOf:
+        - $ref: '#/components/schemas/UpdatePlaceRequest'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: [한식, 일식, 중식, 고기집, 전체]
+
+    ImportRequest:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/DateEntryExport'
+        options:
+          type: object
+          properties:
+            merge_strategy:
+              type: string
+              enum: [replace, merge, skip]
+              default: replace
+            validate_only:
+              type: boolean
+              default: false
+
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 150
+        page:
+          type: integer
+          example: 2
+        limit:
+          type: integer
+          example: 20
+        total_pages:
+          type: integer
+          example: 8
+
+    PaginationLinks:
+      type: object
+      properties:
+        self:
+          type: string
+          example: /dates?page=2&limit=20
+        first:
+          type: string
+          example: /dates?page=1&limit=20
+        prev:
+          type: string
+          example: /dates?page=1&limit=20
+        next:
+          type: string
+          example: /dates?page=3&limit=20
+        last:
+          type: string
+          example: /dates?page=8&limit=20
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: Request validation failed
+        details:
+          type: object
+          additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+        request_id:
+          type: string
+          example: req_abc123xyz
+
+  parameters:
+    DatePath:
+      name: date
+      in: path
+      description: Date in ISO format (YYYY-MM-DD)
+      required: true
+      schema:
+        type: string
+        format: date
+        example: '2025-10-18'
+
+    PlaceIdPath:
+      name: placeId
+      in: path
+      description: Place ID
+      required: true
+      schema:
+        type: string
+        example: cafe_001
+
+  responses:
+    BadRequest:
+      description: Bad request - Invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: BAD_REQUEST
+            message: Invalid request parameters
+            timestamp: '2025-10-18T17:30:00Z'
+            request_id: req_abc123xyz
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: DATE_NOT_FOUND
+            message: Date entry not found
+            details:
+              date: '2025-10-18'
+            timestamp: '2025-10-18T17:30:00Z'
+            request_id: req_abc123xyz
+
+    Conflict:
+      description: Resource already exists
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: DATE_ALREADY_EXISTS
+            message: Date entry already exists
+            details:
+              date: '2025-10-18'
+            timestamp: '2025-10-18T17:30:00Z'
+            request_id: req_abc123xyz
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: VALIDATION_ERROR
+            message: Request validation failed
+            details:
+              name: Name is required
+              region: Region must be 1-50 characters
+            timestamp: '2025-10-18T17:30:00Z'
+            request_id: req_abc123xyz
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: INTERNAL_SERVER_ERROR
+            message: An unexpected error occurred
+            timestamp: '2025-10-18T17:30:00Z'
+            request_id: req_abc123xyz
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT authentication (future implementation)
+
+security: []
