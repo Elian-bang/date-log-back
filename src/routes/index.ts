@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import dateRoutes from './date.routes';
 
 const router = Router();
 
@@ -21,8 +22,10 @@ router.get('/docs', (_req, res) => {
   });
 });
 
+// Date Entry routes
+router.use('/dates', dateRoutes);
+
 // Placeholder for future routes
-// router.use('/dates', dateRoutes);
 // router.use('/regions', regionRoutes);
 
 export default router;
