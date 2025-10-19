@@ -1,0 +1,53 @@
+# Render Blueprint for DateLog Backend
+# https://render.com/docs/blueprint-spec
+
+services:
+  # ===== Staging Environment =====
+  - type: web
+    name: datelog-backend-staging
+    runtime: node
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm start
+    healthCheckPath: /v1/health
+    envVars:
+      - key: NODE_ENV
+        value: staging
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL
+        sync: false  # Set manually in Render dashboard
+      - key: CORS_ORIGIN
+        sync: false  # Update after deploying frontend
+
+  # ===== Production Environment =====
+  - type: web
+    name: datelog-backend-production
+    runtime: node
+    region: oregon
+    plan: starter
+    branch: production
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm start
+    healthCheckPath: /v1/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL
+        sync: false  # Set manually in Render dashboard
+      - key: CORS_ORIGIN
+        sync: false  # Update after deploying frontend
+
+# Database (already exists on Render)
+# databases:
+#   - name: datelog-postgres
+#     databaseName: date_schedule
+#     user: admin
+#     region: oregon
+#     plan: free
+#     ipAllowList: []

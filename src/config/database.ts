@@ -2,6 +2,11 @@ import { PrismaClient } from '@prisma/client';
 import { env } from './env';
 
 const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: 'postgresql://postgres:postgres@127.0.0.1:5432/datelog_dev',
+    },
+  },
   log: env.nodeEnv === 'development' ? ['query', 'error', 'warn'] : ['error'],
 });
 
