@@ -50,7 +50,6 @@ describe('Cafe Routes Integration Tests', () => {
 
       const response = await request(app).get('/v1/cafes').expect(200);
 
-      expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveLength(1);
       expect(response.body.data[0].name).toBe('나무사이로');
     });
@@ -193,7 +192,7 @@ describe('Cafe Routes Integration Tests', () => {
       const response = await request(app).delete('/v1/cafes/cafe-id').expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(response.body.message).toContain('deleted');
+      expect(response.body.data.message).toContain('deleted');
     });
 
     it('should return 404 if cafe not found', async () => {

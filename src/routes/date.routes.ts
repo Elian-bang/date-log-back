@@ -3,10 +3,25 @@
  * Route definitions for date entry endpoints
  */
 
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import * as dateController from '../controllers/date.controller';
+import * as cafeController from '../controllers/cafe.controller';
+import * as restaurantController from '../controllers/restaurant.controller';
+import * as spotController from '../controllers/spot.controller';
 
 const router = Router();
+
+/**
+ * Wrapper to inject dateEntryId from URL params into request body
+ */
+const injectDateEntryId = (
+  controller: (req: Request, res: Response) => Promise<Response>
+) => {
+  return async (req: Request, res: Response): Promise<Response> => {
+    req.body.dateEntryId = req.params.dateEntryId;
+    return controller(req, res);
+  };
+};
 
 /**
  * GET /v1/dates
@@ -46,5 +61,30 @@ router.put('/:id', dateController.updateDateEntry);
  * Delete a date entry
  */
 router.delete('/:id', dateController.deleteDateEntry);
+
+/**
+ * Nested resource routes for creating child entities under a date entry
+ */
+
+/**
+ * POST /v1/dates/:dateEntryId/cafes
+ * Create a new cafe under a date entry
+ * Body: { name: string, memo?: string, image?: string, link?: string, visited?: boolean, latitude?: number, longitude?: number }
+ */
+router.post('/:dateEntryId/cafes', injectDateEntryId(cafeController.createCafe));
+
+/**
+ * POST /v1/dates/:dateEntryId/restaurants
+ * Create a new restaurant under a date entry
+ * Body: { name: string, type: RestaurantType, memo?: string, image?: string, link?: string, visited?: boolean, latitude?: number, longitude?: number }
+ */
+router.post('/:dateEntryId/restaurants', injectDateEntryId(restaurantController.createRestaurant));
+
+/**
+ * POST /v1/dates/:dateEntryId/spots
+ * Create a new spot under a date entry
+ * Body: { name: string, memo?: string, image?: string, link?: string, visited?: boolean, latitude?: number, longitude?: number }
+ */
+router.post('/:dateEntryId/spots', injectDateEntryId(spotController.createSpot));
 
 export default router;

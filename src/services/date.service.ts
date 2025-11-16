@@ -143,7 +143,7 @@ export const getDateEntryById = async (id: string): Promise<DateEntryResponse | 
  * Get a date entry by specific date
  */
 export const getDateEntryByDate = async (date: string): Promise<DateEntryResponse | null> => {
-  const dateEntry = await prisma.dateEntry.findUnique({
+  const dateEntry = await prisma.dateEntry.findFirst({
     where: { date: new Date(date) },
     include: {
       cafes: true,

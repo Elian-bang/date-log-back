@@ -4,10 +4,11 @@
 -- Create date_entries table
 CREATE TABLE IF NOT EXISTS date_entries (
     id VARCHAR(36) PRIMARY KEY,
-    date DATE UNIQUE NOT NULL,
+    date DATE NOT NULL,
     region VARCHAR(50) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (date, region)
 );
 
 -- Create indexes for date_entries

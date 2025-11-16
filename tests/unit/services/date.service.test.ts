@@ -20,6 +20,7 @@ jest.mock('../../../src/config/database', () => ({
     dateEntry: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
@@ -180,13 +181,13 @@ describe('Date Service', () => {
         updatedAt: new Date('2025-10-18T10:00:00Z'),
       };
 
-      (prisma.dateEntry.findUnique as jest.Mock).mockResolvedValue(mockDateEntry);
+      (prisma.dateEntry.findFirst as jest.Mock).mockResolvedValue(mockDateEntry);
 
       const result = await getDateEntryByDate('2025-10-18');
 
       expect(result).not.toBeNull();
       expect(result?.date).toBe('2025-10-18');
-      expect(prisma.dateEntry.findUnique).toHaveBeenCalledWith({
+      expect(prisma.dateEntry.findFirst).toHaveBeenCalledWith({
         where: { date: new Date('2025-10-18') },
         include: {
           cafes: true,
@@ -197,7 +198,7 @@ describe('Date Service', () => {
     });
 
     it('should return null if date entry not found', async () => {
-      (prisma.dateEntry.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.dateEntry.findFirst as jest.Mock).mockResolvedValue(null);
 
       const result = await getDateEntryByDate('2025-01-01');
 

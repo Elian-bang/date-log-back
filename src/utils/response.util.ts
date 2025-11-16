@@ -4,7 +4,7 @@
  */
 
 import { Response } from 'express';
-import { ApiResponse, ApiError, PaginationMeta } from '../types/api.types';
+import { ApiResponse, PaginationMeta } from '../types/api.types';
 
 /**
  * Send successful API response
@@ -21,7 +21,8 @@ export const sendSuccess = <T>(
   meta?: PaginationMeta,
   links?: ApiResponse<T>['links']
 ): Response => {
-  const response: ApiResponse<T> = {
+  const response = {
+    success: true,
     data,
     ...(meta && { meta }),
     ...(links && { links }),
@@ -45,7 +46,8 @@ export const sendError = (
   statusCode = 400,
   details?: string | Record<string, unknown>
 ): Response => {
-  const error: ApiError = {
+  const error = {
+    success: false,
     code,
     message,
     ...(details && { details }),

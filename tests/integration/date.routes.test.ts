@@ -14,6 +14,7 @@ jest.mock('../../src/config/database', () => ({
     dateEntry: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
@@ -147,7 +148,7 @@ describe('Date Routes Integration Tests', () => {
         updatedAt: new Date('2025-10-18T10:00:00Z'),
       };
 
-      (prisma.dateEntry.findUnique as jest.Mock).mockResolvedValue(mockDateEntry);
+      (prisma.dateEntry.findFirst as jest.Mock).mockResolvedValue(mockDateEntry);
 
       const response = await request(app).get('/v1/dates/by-date/2025-10-18').expect(200);
 
@@ -155,7 +156,7 @@ describe('Date Routes Integration Tests', () => {
     });
 
     it('should return 404 if date entry not found', async () => {
-      (prisma.dateEntry.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.dateEntry.findFirst as jest.Mock).mockResolvedValue(null);
 
       const response = await request(app).get('/v1/dates/by-date/2025-01-01').expect(404);
 

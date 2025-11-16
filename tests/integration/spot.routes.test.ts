@@ -195,7 +195,7 @@ describe('Spot Routes Integration Tests', () => {
       const response = await request(app).delete('/v1/spots/spot-id').expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(response.body.message).toContain('deleted');
+      expect(response.body.data.message).toContain('deleted');
     });
 
     it('should return 404 if spot not found', async () => {
