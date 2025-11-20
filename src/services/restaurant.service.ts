@@ -1,9 +1,10 @@
 /**
  * Restaurant Service Layer
- * Business logic for restaurant operations
+ * Business logic for restaurant operations with MongoDB/Mongoose
  */
 
-import prisma from '../config/database';
+import mongoose from 'mongoose';
+import { Restaurant } from '../models/restaurant.model';
 import {
   CreateRestaurantRequest,
   UpdateRestaurantRequest,
@@ -11,13 +12,12 @@ import {
   RestaurantQueryFilters,
   RestaurantType,
 } from '../types/api.types';
-import { Restaurant } from '@prisma/client';
 
 /**
- * Transform Prisma Restaurant to API response format
+ * Transform Mongoose Restaurant to API response format
  */
-const transformRestaurant = (restaurant: Restaurant): RestaurantResponse => ({
-  id: restaurant.id,
+const transformRestaurant = (restaurant: any): RestaurantResponse => ({
+  id: restaurant._id.toString(),
   name: restaurant.name,
   type: restaurant.type as RestaurantType,
   memo: restaurant.memo ?? undefined,
@@ -26,7 +26,7 @@ const transformRestaurant = (restaurant: Restaurant): RestaurantResponse => ({
   visited: restaurant.visited,
   latitude: restaurant.latitude ?? undefined,
   longitude: restaurant.longitude ?? undefined,
-  dateEntryId: restaurant.dateEntryId,
+  dateEntryId: restaurant.dateEntryId.toString(),
   createdAt: restaurant.createdAt.toISOString(),
   updatedAt: restaurant.updatedAt.toISOString(),
 });
@@ -39,30 +39,26 @@ export const getAllRestaurants = async (
   skip: number,
   take: number
 ): Promise<{ data: RestaurantResponse[]; total: number }> => {
-  const where: {
-    type?: string;
-    visited?: boolean;
-  } = {};
+  const query: any = {};
 
   // Apply type filter
   if (filters.type) {
-    where.type = filters.type;
+    query.type = filters.type;
   }
 
   // Apply visited filter
   if (filters.visited !== undefined) {
-    where.visited = filters.visited;
+    query.visited = filters.visited;
   }
 
   // Execute queries in parallel
   const [restaurants, total] = await Promise.all([
-    prisma.restaurant.findMany({
-      where,
-      skip,
-      take,
-      orderBy: { createdAt: 'desc' },
-    }),
-    prisma.restaurant.count({ where }),
+    Restaurant.find(query)
+      .skip(skip)
+      .limit(take)
+      .sort({ createdAt: -1 })
+      .lean(),
+    Restaurant.countDocuments(query),
   ]);
 
   return {
@@ -75,9 +71,11 @@ export const getAllRestaurants = async (
  * Get a single restaurant by ID
  */
 export const getRestaurantById = async (id: string): Promise<RestaurantResponse | null> => {
-  const restaurant = await prisma.restaurant.findUnique({
-    where: { id },
-  });
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return null;
+  }
+
+  const restaurant = await Restaurant.findById(id).lean();
 
   return restaurant ? transformRestaurant(restaurant) : null;
 };
@@ -88,21 +86,21 @@ export const getRestaurantById = async (id: string): Promise<RestaurantResponse 
 export const createRestaurant = async (
   data: CreateRestaurantRequest & { dateEntryId: string }
 ): Promise<RestaurantResponse> => {
-  const restaurant = await prisma.restaurant.create({
-    data: {
-      name: data.name,
-      type: data.type,
-      memo: data.memo,
-      image: data.image,
-      link: data.link,
-      visited: data.visited ?? false,
-      latitude: data.latitude,
-      longitude: data.longitude,
-      dateEntryId: data.dateEntryId,
-    },
+  const restaurant = new Restaurant({
+    name: data.name,
+    type: data.type,
+    memo: data.memo,
+    image: data.image,
+    link: data.link,
+    visited: data.visited ?? false,
+    latitude: data.latitude,
+    longitude: data.longitude,
+    dateEntryId: data.dateEntryId,
   });
 
-  return transformRestaurant(restaurant);
+  await restaurant.save();
+
+  return transformRestaurant(restaurant.toObject());
 };
 
 /**
@@ -112,39 +110,37 @@ export const updateRestaurant = async (
   id: string,
   data: UpdateRestaurantRequest
 ): Promise<RestaurantResponse | null> => {
-  try {
-    const restaurant = await prisma.restaurant.update({
-      where: { id },
-      data: {
-        ...(data.name && { name: data.name }),
-        ...(data.type && { type: data.type }),
-        ...(data.memo !== undefined && { memo: data.memo }),
-        ...(data.image !== undefined && { image: data.image }),
-        ...(data.link !== undefined && { link: data.link }),
-        ...(data.visited !== undefined && { visited: data.visited }),
-        ...(data.latitude !== undefined && { latitude: data.latitude }),
-        ...(data.longitude !== undefined && { longitude: data.longitude }),
-      },
-    });
-
-    return transformRestaurant(restaurant);
-  } catch (error) {
-    // Handle record not found
+  if (!mongoose.Types.ObjectId.isValid(id)) {
     return null;
   }
+
+  const updateData: any = {};
+  if (data.name) updateData.name = data.name;
+  if (data.type) updateData.type = data.type;
+  if (data.memo !== undefined) updateData.memo = data.memo;
+  if (data.image !== undefined) updateData.image = data.image;
+  if (data.link !== undefined) updateData.link = data.link;
+  if (data.visited !== undefined) updateData.visited = data.visited;
+  if (data.latitude !== undefined) updateData.latitude = data.latitude;
+  if (data.longitude !== undefined) updateData.longitude = data.longitude;
+
+  const restaurant = await Restaurant.findByIdAndUpdate(id, updateData, {
+    new: true,
+    runValidators: true,
+  }).lean();
+
+  return restaurant ? transformRestaurant(restaurant) : null;
 };
 
 /**
  * Delete a restaurant
  */
 export const deleteRestaurant = async (id: string): Promise<boolean> => {
-  try {
-    await prisma.restaurant.delete({
-      where: { id },
-    });
-    return true;
-  } catch (error) {
-    // Handle record not found
+  if (!mongoose.Types.ObjectId.isValid(id)) {
     return false;
   }
+
+  const restaurant = await Restaurant.findByIdAndDelete(id);
+
+  return restaurant !== null;
 };

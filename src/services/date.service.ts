@@ -1,76 +1,78 @@
 /**
  * Date Entry Service Layer
- * Business logic for date entry operations
+ * Business logic for date entry operations with MongoDB/Mongoose
  */
 
-import prisma from '../config/database';
+import mongoose from 'mongoose';
+import { DateEntry, IDateEntry } from '../models/dateEntry.model';
+import { Cafe } from '../models/cafe.model';
+import { Restaurant } from '../models/restaurant.model';
+import { Spot } from '../models/spot.model';
 import {
   CreateDateEntryRequest,
   UpdateDateEntryRequest,
   DateEntryResponse,
   DateEntryQueryFilters,
 } from '../types/api.types';
-import { DateEntry, Cafe, Restaurant, Spot } from '@prisma/client';
 
 /**
- * Date Entry with relations type
+ * Transform Mongoose DateEntry to API response format
  */
-type DateEntryWithRelations = DateEntry & {
-  cafes: Cafe[];
-  restaurants: Restaurant[];
-  spots: Spot[];
+const transformDateEntry = async (dateEntry: IDateEntry): Promise<DateEntryResponse> => {
+  const [cafes, restaurants, spots] = await Promise.all([
+    Cafe.find({ dateEntryId: dateEntry._id }).lean(),
+    Restaurant.find({ dateEntryId: dateEntry._id }).lean(),
+    Spot.find({ dateEntryId: dateEntry._id }).lean(),
+  ]);
+
+  return {
+    id: dateEntry._id.toString(),
+    date: dateEntry.date.toISOString().split('T')[0],
+    region: dateEntry.region,
+    cafes: cafes.map((cafe) => ({
+      id: cafe._id.toString(),
+      name: cafe.name,
+      memo: cafe.memo,
+      image: cafe.image,
+      link: cafe.link,
+      visited: cafe.visited,
+      latitude: cafe.latitude,
+      longitude: cafe.longitude,
+      dateEntryId: cafe.dateEntryId.toString(),
+      createdAt: cafe.createdAt.toISOString(),
+      updatedAt: cafe.updatedAt.toISOString(),
+    })),
+    restaurants: restaurants.map((restaurant) => ({
+      id: restaurant._id.toString(),
+      name: restaurant.name,
+      type: restaurant.type as DateEntryResponse['restaurants'][0]['type'],
+      memo: restaurant.memo,
+      image: restaurant.image,
+      link: restaurant.link,
+      visited: restaurant.visited,
+      latitude: restaurant.latitude,
+      longitude: restaurant.longitude,
+      dateEntryId: restaurant.dateEntryId.toString(),
+      createdAt: restaurant.createdAt.toISOString(),
+      updatedAt: restaurant.updatedAt.toISOString(),
+    })),
+    spots: spots.map((spot) => ({
+      id: spot._id.toString(),
+      name: spot.name,
+      memo: spot.memo,
+      image: spot.image,
+      link: spot.link,
+      visited: spot.visited,
+      latitude: spot.latitude,
+      longitude: spot.longitude,
+      dateEntryId: spot.dateEntryId.toString(),
+      createdAt: spot.createdAt.toISOString(),
+      updatedAt: spot.updatedAt.toISOString(),
+    })),
+    createdAt: dateEntry.createdAt.toISOString(),
+    updatedAt: dateEntry.updatedAt.toISOString(),
+  };
 };
-
-/**
- * Transform Prisma DateEntry to API response format
- */
-const transformDateEntry = (dateEntry: DateEntryWithRelations): DateEntryResponse => ({
-  id: dateEntry.id,
-  date: dateEntry.date.toISOString().split('T')[0],
-  region: dateEntry.region,
-  cafes: dateEntry.cafes.map((cafe) => ({
-    id: cafe.id,
-    name: cafe.name,
-    memo: cafe.memo ?? undefined,
-    image: cafe.image ?? undefined,
-    link: cafe.link ?? undefined,
-    visited: cafe.visited,
-    latitude: cafe.latitude ?? undefined,
-    longitude: cafe.longitude ?? undefined,
-    dateEntryId: cafe.dateEntryId,
-    createdAt: cafe.createdAt.toISOString(),
-    updatedAt: cafe.updatedAt.toISOString(),
-  })),
-  restaurants: dateEntry.restaurants.map((restaurant) => ({
-    id: restaurant.id,
-    name: restaurant.name,
-    type: restaurant.type as DateEntryResponse['restaurants'][0]['type'],
-    memo: restaurant.memo ?? undefined,
-    image: restaurant.image ?? undefined,
-    link: restaurant.link ?? undefined,
-    visited: restaurant.visited,
-    latitude: restaurant.latitude ?? undefined,
-    longitude: restaurant.longitude ?? undefined,
-    dateEntryId: restaurant.dateEntryId,
-    createdAt: restaurant.createdAt.toISOString(),
-    updatedAt: restaurant.updatedAt.toISOString(),
-  })),
-  spots: dateEntry.spots.map((spot) => ({
-    id: spot.id,
-    name: spot.name,
-    memo: spot.memo ?? undefined,
-    image: spot.image ?? undefined,
-    link: spot.link ?? undefined,
-    visited: spot.visited,
-    latitude: spot.latitude ?? undefined,
-    longitude: spot.longitude ?? undefined,
-    dateEntryId: spot.dateEntryId,
-    createdAt: spot.createdAt.toISOString(),
-    updatedAt: spot.updatedAt.toISOString(),
-  })),
-  createdAt: dateEntry.createdAt.toISOString(),
-  updatedAt: dateEntry.updatedAt.toISOString(),
-});
 
 /**
  * Get all date entries with optional filters and pagination
@@ -80,45 +82,41 @@ export const getAllDateEntries = async (
   skip: number,
   take: number
 ): Promise<{ data: DateEntryResponse[]; total: number }> => {
-  const where: {
-    date?: { gte?: Date; lte?: Date };
-    region?: string;
-  } = {};
+  const query: any = {};
 
   // Apply date filters
   if (filters.startDate || filters.endDate) {
-    where.date = {};
+    query.date = {};
     if (filters.startDate) {
-      where.date.gte = new Date(filters.startDate);
+      query.date.$gte = new Date(filters.startDate);
     }
     if (filters.endDate) {
-      where.date.lte = new Date(filters.endDate);
+      query.date.$lte = new Date(filters.endDate);
     }
   }
 
   // Apply region filter
   if (filters.region) {
-    where.region = filters.region;
+    query.region = filters.region;
   }
 
   // Execute queries in parallel
   const [dateEntries, total] = await Promise.all([
-    prisma.dateEntry.findMany({
-      where,
-      skip,
-      take,
-      orderBy: { date: 'desc' },
-      include: {
-        cafes: true,
-        restaurants: true,
-        spots: true,
-      },
-    }),
-    prisma.dateEntry.count({ where }),
+    DateEntry.find(query)
+      .skip(skip)
+      .limit(take)
+      .sort({ date: -1 })
+      .lean(),
+    DateEntry.countDocuments(query),
   ]);
 
+  // Transform all entries
+  const transformedData = await Promise.all(
+    dateEntries.map((entry) => transformDateEntry(entry as unknown as IDateEntry))
+  );
+
   return {
-    data: dateEntries.map(transformDateEntry),
+    data: transformedData,
     total,
   };
 };
@@ -127,49 +125,34 @@ export const getAllDateEntries = async (
  * Get a single date entry by ID
  */
 export const getDateEntryById = async (id: string): Promise<DateEntryResponse | null> => {
-  const dateEntry = await prisma.dateEntry.findUnique({
-    where: { id },
-    include: {
-      cafes: true,
-      restaurants: true,
-      spots: true,
-    },
-  });
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return null;
+  }
 
-  return dateEntry ? transformDateEntry(dateEntry) : null;
+  const dateEntry = await DateEntry.findById(id).lean();
+
+  return dateEntry ? transformDateEntry(dateEntry as unknown as IDateEntry) : null;
 };
 
 /**
  * Get a date entry by specific date
  */
 export const getDateEntryByDate = async (date: string): Promise<DateEntryResponse | null> => {
-  const dateEntry = await prisma.dateEntry.findFirst({
-    where: { date: new Date(date) },
-    include: {
-      cafes: true,
-      restaurants: true,
-      spots: true,
-    },
-  });
+  const dateEntry = await DateEntry.findOne({ date: new Date(date) }).lean();
 
-  return dateEntry ? transformDateEntry(dateEntry) : null;
+  return dateEntry ? transformDateEntry(dateEntry as unknown as IDateEntry) : null;
 };
 
 /**
  * Create a new date entry
  */
 export const createDateEntry = async (data: CreateDateEntryRequest): Promise<DateEntryResponse> => {
-  const dateEntry = await prisma.dateEntry.create({
-    data: {
-      date: new Date(data.date),
-      region: data.region,
-    },
-    include: {
-      cafes: true,
-      restaurants: true,
-      spots: true,
-    },
+  const dateEntry = new DateEntry({
+    date: new Date(data.date),
+    region: data.region,
   });
+
+  await dateEntry.save();
 
   return transformDateEntry(dateEntry);
 };
@@ -181,38 +164,58 @@ export const updateDateEntry = async (
   id: string,
   data: UpdateDateEntryRequest
 ): Promise<DateEntryResponse | null> => {
-  try {
-    const dateEntry = await prisma.dateEntry.update({
-      where: { id },
-      data: {
-        ...(data.date && { date: new Date(data.date) }),
-        ...(data.region && { region: data.region }),
-      },
-      include: {
-        cafes: true,
-        restaurants: true,
-        spots: true,
-      },
-    });
-
-    return transformDateEntry(dateEntry);
-  } catch (error) {
-    // Handle record not found
+  if (!mongoose.Types.ObjectId.isValid(id)) {
     return null;
   }
+
+  const updateData: any = {};
+  if (data.date) {
+    updateData.date = new Date(data.date);
+  }
+  if (data.region) {
+    updateData.region = data.region;
+  }
+
+  const dateEntry = await DateEntry.findByIdAndUpdate(id, updateData, {
+    new: true,
+    runValidators: true,
+  }).lean();
+
+  return dateEntry ? transformDateEntry(dateEntry as unknown as IDateEntry) : null;
 };
 
 /**
- * Delete a date entry
+ * Delete a date entry (CASCADE: also deletes related cafes, restaurants, spots)
  */
 export const deleteDateEntry = async (id: string): Promise<boolean> => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return false;
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    await prisma.dateEntry.delete({
-      where: { id },
-    });
+    const dateEntry = await DateEntry.findByIdAndDelete(id).session(session);
+
+    if (!dateEntry) {
+      await session.abortTransaction();
+      return false;
+    }
+
+    // CASCADE DELETE: Delete all related entities
+    await Promise.all([
+      Cafe.deleteMany({ dateEntryId: id }).session(session),
+      Restaurant.deleteMany({ dateEntryId: id }).session(session),
+      Spot.deleteMany({ dateEntryId: id }).session(session),
+    ]);
+
+    await session.commitTransaction();
     return true;
   } catch (error) {
-    // Handle record not found
+    await session.abortTransaction();
     return false;
+  } finally {
+    session.endSession();
   }
 };

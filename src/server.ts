@@ -1,8 +1,13 @@
 import app from './app';
 import { env } from './config/env';
+import { connectDB } from './config/database';
 
-const startServer = (): void => {
+const startServer = async (): Promise<void> => {
   try {
+    // MongoDB 연결
+    await connectDB();
+
+    // Express 서버 시작
     app.listen(env.port, () => {
       console.log('=================================');
       console.log(`🚀 DateLog API Server Started`);
@@ -13,7 +18,7 @@ const startServer = (): void => {
       console.log('=================================');
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 };

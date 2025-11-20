@@ -1,22 +1,22 @@
 /**
  * Spot Service Layer
- * Business logic for spot operations
+ * Business logic for spot operations with MongoDB/Mongoose
  */
 
-import prisma from '../config/database';
+import mongoose from 'mongoose';
+import { Spot } from '../models/spot.model';
 import {
   CreateSpotRequest,
   UpdateSpotRequest,
   SpotResponse,
   PlaceQueryFilters,
 } from '../types/api.types';
-import { Spot } from '@prisma/client';
 
 /**
- * Transform Prisma Spot to API response format
+ * Transform Mongoose Spot to API response format
  */
-const transformSpot = (spot: Spot): SpotResponse => ({
-  id: spot.id,
+const transformSpot = (spot: any): SpotResponse => ({
+  id: spot._id.toString(),
   name: spot.name,
   memo: spot.memo ?? undefined,
   image: spot.image ?? undefined,
@@ -24,7 +24,7 @@ const transformSpot = (spot: Spot): SpotResponse => ({
   visited: spot.visited,
   latitude: spot.latitude ?? undefined,
   longitude: spot.longitude ?? undefined,
-  dateEntryId: spot.dateEntryId,
+  dateEntryId: spot.dateEntryId.toString(),
   createdAt: spot.createdAt.toISOString(),
   updatedAt: spot.updatedAt.toISOString(),
 });
@@ -37,24 +37,21 @@ export const getAllSpots = async (
   skip: number,
   take: number
 ): Promise<{ data: SpotResponse[]; total: number }> => {
-  const where: {
-    visited?: boolean;
-  } = {};
+  const query: any = {};
 
   // Apply visited filter
   if (filters.visited !== undefined) {
-    where.visited = filters.visited;
+    query.visited = filters.visited;
   }
 
   // Execute queries in parallel
   const [spots, total] = await Promise.all([
-    prisma.spot.findMany({
-      where,
-      skip,
-      take,
-      orderBy: { createdAt: 'desc' },
-    }),
-    prisma.spot.count({ where }),
+    Spot.find(query)
+      .skip(skip)
+      .limit(take)
+      .sort({ createdAt: -1 })
+      .lean(),
+    Spot.countDocuments(query),
   ]);
 
   return {
@@ -67,9 +64,11 @@ export const getAllSpots = async (
  * Get a single spot by ID
  */
 export const getSpotById = async (id: string): Promise<SpotResponse | null> => {
-  const spot = await prisma.spot.findUnique({
-    where: { id },
-  });
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return null;
+  }
+
+  const spot = await Spot.findById(id).lean();
 
   return spot ? transformSpot(spot) : null;
 };
@@ -80,20 +79,20 @@ export const getSpotById = async (id: string): Promise<SpotResponse | null> => {
 export const createSpot = async (
   data: CreateSpotRequest & { dateEntryId: string }
 ): Promise<SpotResponse> => {
-  const spot = await prisma.spot.create({
-    data: {
-      name: data.name,
-      memo: data.memo,
-      image: data.image,
-      link: data.link,
-      visited: data.visited ?? false,
-      latitude: data.latitude,
-      longitude: data.longitude,
-      dateEntryId: data.dateEntryId,
-    },
+  const spot = new Spot({
+    name: data.name,
+    memo: data.memo,
+    image: data.image,
+    link: data.link,
+    visited: data.visited ?? false,
+    latitude: data.latitude,
+    longitude: data.longitude,
+    dateEntryId: data.dateEntryId,
   });
 
-  return transformSpot(spot);
+  await spot.save();
+
+  return transformSpot(spot.toObject());
 };
 
 /**
@@ -103,38 +102,36 @@ export const updateSpot = async (
   id: string,
   data: UpdateSpotRequest
 ): Promise<SpotResponse | null> => {
-  try {
-    const spot = await prisma.spot.update({
-      where: { id },
-      data: {
-        ...(data.name && { name: data.name }),
-        ...(data.memo !== undefined && { memo: data.memo }),
-        ...(data.image !== undefined && { image: data.image }),
-        ...(data.link !== undefined && { link: data.link }),
-        ...(data.visited !== undefined && { visited: data.visited }),
-        ...(data.latitude !== undefined && { latitude: data.latitude }),
-        ...(data.longitude !== undefined && { longitude: data.longitude }),
-      },
-    });
-
-    return transformSpot(spot);
-  } catch (error) {
-    // Handle record not found
+  if (!mongoose.Types.ObjectId.isValid(id)) {
     return null;
   }
+
+  const updateData: any = {};
+  if (data.name) updateData.name = data.name;
+  if (data.memo !== undefined) updateData.memo = data.memo;
+  if (data.image !== undefined) updateData.image = data.image;
+  if (data.link !== undefined) updateData.link = data.link;
+  if (data.visited !== undefined) updateData.visited = data.visited;
+  if (data.latitude !== undefined) updateData.latitude = data.latitude;
+  if (data.longitude !== undefined) updateData.longitude = data.longitude;
+
+  const spot = await Spot.findByIdAndUpdate(id, updateData, {
+    new: true,
+    runValidators: true,
+  }).lean();
+
+  return spot ? transformSpot(spot) : null;
 };
 
 /**
  * Delete a spot
  */
 export const deleteSpot = async (id: string): Promise<boolean> => {
-  try {
-    await prisma.spot.delete({
-      where: { id },
-    });
-    return true;
-  } catch (error) {
-    // Handle record not found
+  if (!mongoose.Types.ObjectId.isValid(id)) {
     return false;
   }
+
+  const spot = await Spot.findByIdAndDelete(id);
+
+  return spot !== null;
 };

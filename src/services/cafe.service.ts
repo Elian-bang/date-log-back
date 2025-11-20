@@ -1,22 +1,22 @@
 /**
  * Cafe Service Layer
- * Business logic for cafe operations
+ * Business logic for cafe operations with MongoDB/Mongoose
  */
 
-import prisma from '../config/database';
+import mongoose from 'mongoose';
+import { Cafe } from '../models/cafe.model';
 import {
   CreateCafeRequest,
   UpdateCafeRequest,
   CafeResponse,
   PlaceQueryFilters,
 } from '../types/api.types';
-import { Cafe } from '@prisma/client';
 
 /**
- * Transform Prisma Cafe to API response format
+ * Transform Mongoose Cafe to API response format
  */
-const transformCafe = (cafe: Cafe): CafeResponse => ({
-  id: cafe.id,
+const transformCafe = (cafe: any): CafeResponse => ({
+  id: cafe._id.toString(),
   name: cafe.name,
   memo: cafe.memo ?? undefined,
   image: cafe.image ?? undefined,
@@ -24,7 +24,7 @@ const transformCafe = (cafe: Cafe): CafeResponse => ({
   visited: cafe.visited,
   latitude: cafe.latitude ?? undefined,
   longitude: cafe.longitude ?? undefined,
-  dateEntryId: cafe.dateEntryId,
+  dateEntryId: cafe.dateEntryId.toString(),
   createdAt: cafe.createdAt.toISOString(),
   updatedAt: cafe.updatedAt.toISOString(),
 });
@@ -37,24 +37,21 @@ export const getAllCafes = async (
   skip: number,
   take: number
 ): Promise<{ data: CafeResponse[]; total: number }> => {
-  const where: {
-    visited?: boolean;
-  } = {};
+  const query: any = {};
 
   // Apply visited filter
   if (filters.visited !== undefined) {
-    where.visited = filters.visited;
+    query.visited = filters.visited;
   }
 
   // Execute queries in parallel
   const [cafes, total] = await Promise.all([
-    prisma.cafe.findMany({
-      where,
-      skip,
-      take,
-      orderBy: { createdAt: 'desc' },
-    }),
-    prisma.cafe.count({ where }),
+    Cafe.find(query)
+      .skip(skip)
+      .limit(take)
+      .sort({ createdAt: -1 })
+      .lean(),
+    Cafe.countDocuments(query),
   ]);
 
   return {
@@ -67,9 +64,11 @@ export const getAllCafes = async (
  * Get a single cafe by ID
  */
 export const getCafeById = async (id: string): Promise<CafeResponse | null> => {
-  const cafe = await prisma.cafe.findUnique({
-    where: { id },
-  });
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return null;
+  }
+
+  const cafe = await Cafe.findById(id).lean();
 
   return cafe ? transformCafe(cafe) : null;
 };
@@ -80,20 +79,20 @@ export const getCafeById = async (id: string): Promise<CafeResponse | null> => {
 export const createCafe = async (
   data: CreateCafeRequest & { dateEntryId: string }
 ): Promise<CafeResponse> => {
-  const cafe = await prisma.cafe.create({
-    data: {
-      name: data.name,
-      memo: data.memo,
-      image: data.image,
-      link: data.link,
-      visited: data.visited ?? false,
-      latitude: data.latitude,
-      longitude: data.longitude,
-      dateEntryId: data.dateEntryId,
-    },
+  const cafe = new Cafe({
+    name: data.name,
+    memo: data.memo,
+    image: data.image,
+    link: data.link,
+    visited: data.visited ?? false,
+    latitude: data.latitude,
+    longitude: data.longitude,
+    dateEntryId: data.dateEntryId,
   });
 
-  return transformCafe(cafe);
+  await cafe.save();
+
+  return transformCafe(cafe.toObject());
 };
 
 /**
@@ -103,38 +102,36 @@ export const updateCafe = async (
   id: string,
   data: UpdateCafeRequest
 ): Promise<CafeResponse | null> => {
-  try {
-    const cafe = await prisma.cafe.update({
-      where: { id },
-      data: {
-        ...(data.name && { name: data.name }),
-        ...(data.memo !== undefined && { memo: data.memo }),
-        ...(data.image !== undefined && { image: data.image }),
-        ...(data.link !== undefined && { link: data.link }),
-        ...(data.visited !== undefined && { visited: data.visited }),
-        ...(data.latitude !== undefined && { latitude: data.latitude }),
-        ...(data.longitude !== undefined && { longitude: data.longitude }),
-      },
-    });
-
-    return transformCafe(cafe);
-  } catch (error) {
-    // Handle record not found
+  if (!mongoose.Types.ObjectId.isValid(id)) {
     return null;
   }
+
+  const updateData: any = {};
+  if (data.name) updateData.name = data.name;
+  if (data.memo !== undefined) updateData.memo = data.memo;
+  if (data.image !== undefined) updateData.image = data.image;
+  if (data.link !== undefined) updateData.link = data.link;
+  if (data.visited !== undefined) updateData.visited = data.visited;
+  if (data.latitude !== undefined) updateData.latitude = data.latitude;
+  if (data.longitude !== undefined) updateData.longitude = data.longitude;
+
+  const cafe = await Cafe.findByIdAndUpdate(id, updateData, {
+    new: true,
+    runValidators: true,
+  }).lean();
+
+  return cafe ? transformCafe(cafe) : null;
 };
 
 /**
  * Delete a cafe
  */
 export const deleteCafe = async (id: string): Promise<boolean> => {
-  try {
-    await prisma.cafe.delete({
-      where: { id },
-    });
-    return true;
-  } catch (error) {
-    // Handle record not found
+  if (!mongoose.Types.ObjectId.isValid(id)) {
     return false;
   }
+
+  const cafe = await Cafe.findByIdAndDelete(id);
+
+  return cafe !== null;
 };
