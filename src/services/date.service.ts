@@ -102,11 +102,7 @@ export const getAllDateEntries = async (
 
   // Execute queries in parallel
   const [dateEntries, total] = await Promise.all([
-    DateEntry.find(query)
-      .skip(skip)
-      .limit(take)
-      .sort({ date: -1 })
-      .lean(),
+    DateEntry.find(query).skip(skip).limit(take).sort({ date: -1 }).lean(),
     DateEntry.countDocuments(query),
   ]);
 
@@ -192,30 +188,23 @@ export const deleteDateEntry = async (id: string): Promise<boolean> => {
     return false;
   }
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
-    const dateEntry = await DateEntry.findByIdAndDelete(id).session(session);
+    const dateEntry = await DateEntry.findByIdAndDelete(id);
 
     if (!dateEntry) {
-      await session.abortTransaction();
       return false;
     }
 
     // CASCADE DELETE: Delete all related entities
     await Promise.all([
-      Cafe.deleteMany({ dateEntryId: id }).session(session),
-      Restaurant.deleteMany({ dateEntryId: id }).session(session),
-      Spot.deleteMany({ dateEntryId: id }).session(session),
+      Cafe.deleteMany({ dateEntryId: id }),
+      Restaurant.deleteMany({ dateEntryId: id }),
+      Spot.deleteMany({ dateEntryId: id }),
     ]);
 
-    await session.commitTransaction();
     return true;
   } catch (error) {
-    await session.abortTransaction();
+    console.error('Error deleting date entry:', error);
     return false;
-  } finally {
-    session.endSession();
   }
 };

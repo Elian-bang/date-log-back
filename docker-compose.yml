@@ -1,0 +1,77 @@
+# ================================================
+# DateLog Backend - Docker Compose Configuration
+# For local development and testing
+# ================================================
+
+version: '3.8'
+
+services:
+  # DateLog API Server
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: datelog-api
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - MONGODB_URI=mongodb://mongo:27017/datelog_dev
+      - CORS_ORIGIN=http://localhost:5173
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - datelog-network
+
+  # MongoDB Database
+  mongo:
+    image: mongo:7
+    container_name: datelog-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - datelog-network
+
+  # MongoDB Express (Optional - Web UI for MongoDB)
+  mongo-express:
+    image: mongo-express:latest
+    container_name: datelog-mongo-express
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongo
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin123
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - datelog-network
+    profiles:
+      - debug
+
+volumes:
+  mongo_data:
+    name: datelog-mongo-data
+  mongo_config:
+    name: datelog-mongo-config
+
+networks:
+  datelog-network:
+    name: datelog-network
+    driver: bridge

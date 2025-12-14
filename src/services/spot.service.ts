@@ -46,11 +46,7 @@ export const getAllSpots = async (
 
   // Execute queries in parallel
   const [spots, total] = await Promise.all([
-    Spot.find(query)
-      .skip(skip)
-      .limit(take)
-      .sort({ createdAt: -1 })
-      .lean(),
+    Spot.find(query).skip(skip).limit(take).sort({ createdAt: -1 }).lean(),
     Spot.countDocuments(query),
   ]);
 

@@ -29,5 +29,5 @@
     "node": true,
     "es2020": true
   },
-  "ignorePatterns": ["dist", "node_modules"]
+  "ignorePatterns": ["dist", "node_modules", "**/__tests__/**", "**/*.test.ts"]
 }

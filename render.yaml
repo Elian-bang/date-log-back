@@ -1,10 +1,13 @@
 # Render Blueprint for DateLog Backend
 # https://render.com/docs/blueprint-spec
+#
+# Production URL: https://date-log-back.onrender.com
+# Staging URL: https://date-log-back-staging.onrender.com
 
 services:
   # ===== Staging Environment =====
   - type: web
-    name: datelog-backend-staging
+    name: date-log-back-staging
     runtime: node
     region: oregon
     plan: free
@@ -16,19 +19,20 @@ services:
       - key: NODE_ENV
         value: staging
       - key: PORT
-        sync: false  # Render sets this automatically, but we can override
+        sync: false  # Render sets this automatically
       - key: MONGODB_URI
         sync: false  # Set manually in Render dashboard
       - key: CORS_ORIGIN
         sync: false  # Update after deploying frontend
 
   # ===== Production Environment =====
+  # URL must match frontend's VITE_API_BASE_URL
   - type: web
-    name: datelog-backend-production
+    name: date-log-back
     runtime: node
     region: oregon
-    plan: starter
-    branch: production
+    plan: free
+    branch: main
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /v1/health
@@ -37,7 +41,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: PORT
-        sync: false  # Render sets this automatically, but we can override
+        sync: false  # Render sets this automatically
       - key: MONGODB_URI
         sync: false  # Set manually in Render dashboard
       - key: CORS_ORIGIN

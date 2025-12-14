@@ -1,0 +1,64 @@
+# ================================================
+# DateLog Backend - Docker Ignore
+# Files to exclude from Docker build context
+# ================================================
+
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Build output
+dist
+
+# Environment files (sensitive)
+.env
+.env.*
+!.env.example
+
+# Version control
+.git
+.gitignore
+
+# IDE and editor
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Testing
+coverage
+.nyc_output
+*.test.ts
+__tests__
+
+# Development configs
+.eslintrc*
+.prettierrc*
+.prettierignore
+jest.config.js
+tsconfig.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Docker files (avoid recursive inclusion)
+Dockerfile*
+docker-compose*
+.dockerignore

@@ -53,11 +53,7 @@ export const getAllRestaurants = async (
 
   // Execute queries in parallel
   const [restaurants, total] = await Promise.all([
-    Restaurant.find(query)
-      .skip(skip)
-      .limit(take)
-      .sort({ createdAt: -1 })
-      .lean(),
+    Restaurant.find(query).skip(skip).limit(take).sort({ createdAt: -1 }).lean(),
     Restaurant.countDocuments(query),
   ]);
 

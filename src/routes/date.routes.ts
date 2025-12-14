@@ -14,9 +14,7 @@ const router = Router();
 /**
  * Wrapper to inject dateEntryId from URL params into request body
  */
-const injectDateEntryId = (
-  controller: (req: Request, res: Response) => Promise<Response>
-) => {
+const injectDateEntryId = (controller: (req: Request, res: Response) => Promise<Response>) => {
   return async (req: Request, res: Response): Promise<Response> => {
     req.body.dateEntryId = req.params.dateEntryId;
     return controller(req, res);

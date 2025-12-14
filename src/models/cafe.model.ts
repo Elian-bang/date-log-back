@@ -26,7 +26,7 @@ const CafeSchema = new Schema<ICafe>(
     dateEntryId: {
       type: Schema.Types.ObjectId,
       ref: 'DateEntry',
-      required: true
+      required: true,
     },
   },
   {

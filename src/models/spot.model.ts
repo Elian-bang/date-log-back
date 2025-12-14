@@ -26,7 +26,7 @@ const SpotSchema = new Schema<ISpot>(
     dateEntryId: {
       type: Schema.Types.ObjectId,
       ref: 'DateEntry',
-      required: true
+      required: true,
     },
   },
   {

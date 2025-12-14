@@ -28,7 +28,7 @@ const RestaurantSchema = new Schema<IRestaurant>(
     dateEntryId: {
       type: Schema.Types.ObjectId,
       ref: 'DateEntry',
-      required: true
+      required: true,
     },
   },
   {

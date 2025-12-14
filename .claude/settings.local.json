@@ -2,7 +2,25 @@
   "permissions": {
     "allow": [
       "mcp__sequential-thinking__sequentialthinking",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(npx kill-port:*)",
+      "Bash(ping:*)",
+      "Bash(nul)",
+      "Bash(curl:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx ts-node:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(cat:*)",
+      "Bash(git restore:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -46,11 +46,7 @@ export const getAllCafes = async (
 
   // Execute queries in parallel
   const [cafes, total] = await Promise.all([
-    Cafe.find(query)
-      .skip(skip)
-      .limit(take)
-      .sort({ createdAt: -1 })
-      .lean(),
+    Cafe.find(query).skip(skip).limit(take).sort({ createdAt: -1 }).lean(),
     Cafe.countDocuments(query),
   ]);
 
