@@ -140,9 +140,10 @@ export const getDateEntryByDate = async (date: string): Promise<DateEntryRespons
 };
 
 /**
- * Create a new date entry
+ * Create a new date entry with nested cafes, restaurants, and spots
  */
 export const createDateEntry = async (data: CreateDateEntryRequest): Promise<DateEntryResponse> => {
+  // 1. Create DateEntry
   const dateEntry = new DateEntry({
     date: new Date(data.date),
     region: data.region,
@@ -150,6 +151,52 @@ export const createDateEntry = async (data: CreateDateEntryRequest): Promise<Dat
 
   await dateEntry.save();
 
+  // 2. Create nested entities (cafes, restaurants, spots)
+  const dateEntryId = dateEntry._id;
+  const createPromises: Promise<any>[] = [];
+
+  // Create cafes
+  if (data.cafes && data.cafes.length > 0) {
+    const cafePromises = data.cafes.map((cafeData) =>
+      new Cafe({
+        ...cafeData,
+        dateEntryId,
+        visited: cafeData.visited ?? false,
+      }).save()
+    );
+    createPromises.push(...cafePromises);
+  }
+
+  // Create restaurants
+  if (data.restaurants && data.restaurants.length > 0) {
+    const restaurantPromises = data.restaurants.map((restaurantData) =>
+      new Restaurant({
+        ...restaurantData,
+        dateEntryId,
+        visited: restaurantData.visited ?? false,
+      }).save()
+    );
+    createPromises.push(...restaurantPromises);
+  }
+
+  // Create spots
+  if (data.spots && data.spots.length > 0) {
+    const spotPromises = data.spots.map((spotData) =>
+      new Spot({
+        ...spotData,
+        dateEntryId,
+        visited: spotData.visited ?? false,
+      }).save()
+    );
+    createPromises.push(...spotPromises);
+  }
+
+  // Execute all creations in parallel
+  if (createPromises.length > 0) {
+    await Promise.all(createPromises);
+  }
+
+  // 3. Return with all nested data
   return transformDateEntry(dateEntry);
 };
 

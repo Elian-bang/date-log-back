@@ -60,6 +60,9 @@ export interface ApiError {
 export interface CreateDateEntryRequest {
   date: string; // ISO 8601 date format (YYYY-MM-DD)
   region: string;
+  cafes?: CreateCafeRequest[];
+  restaurants?: CreateRestaurantRequest[];
+  spots?: CreateSpotRequest[];
 }
 
 /**
