@@ -31,6 +31,7 @@ router.get('/', dateController.getAllDateEntries);
 /**
  * GET /v1/dates/by-date/:date
  * Get a date entry by specific date (YYYY-MM-DD)
+ * Query params: region (optional) - Filter by specific region
  */
 router.get('/by-date/:date', dateController.getDateEntryByDate);
 
